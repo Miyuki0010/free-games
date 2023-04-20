@@ -3,8 +3,8 @@ const fs = require('fs');
 const cron = require('node-cron');
 
 // Function to fetch free games from the Epic Games Store
-async function fetchGames() {
-  const url = 'https://store-site-backend-static.epicgames.com/freeGamesPromotions?locale=en-US&country=US&allowCountries=US';
+async function fetchEpicGames() {
+  const url = 'https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=en-US&country=US&allowCountries=US';
   try {
     const response = await axios.get(url);
     const data = response.data;
@@ -20,17 +20,17 @@ async function fetchGames() {
 
 // Function to fetch free games from Steam
 async function fetchSteamGames() {
-    const url = 'https://store.steampowered.com/api/freegames/page1';
-    try {
-      const response = await axios.get(url);
-      const data = response.data;
-      const freeGames = data.map(game => game.title);
-      return freeGames;
-    } catch (error) {
-      console.error('Error:', error.message);
-      return [];
-    }
+  const url = 'https://store.steampowered.com/api/freegames/page1';
+  try {
+    const response = await axios.get(url);
+    const data = response.data;
+    const freeGames = data.map(game => game.title);
+    return freeGames;
+  } catch (error) {
+    console.error('Error:', error.message);
+    return [];
   }
+}
 
 // Function to post a toot on Mastodon using Axios
 async function toot(status) {
@@ -49,34 +49,61 @@ async function toot(status) {
   }
 }
 
-// Function to schedule a toot every morning at 8 AM
-function scheduleToot() {
-    cron.schedule('0 8 * * *', async () => {
-        const epicGames = await fetchEpicGames();
-        const steamGames = await fetchSteamGames();
-        let status = '';
-        if (epicGames.length > 0) {
-          status += `Today's free games on Epic Games Store: ${epicGames.join(', ')}. 
-          Get them now! #freegames #EpicGamesStore`;
-        }
-        if (steamGames.length > 0) {
-          if (epicGames.length > 0) {
-            status += '\n\n';
-          }
-            status += `Today's free games on Steam: ${steamGames.join(', ')}. 
-            Get them now! #freegames #Steam`;
-        }
-        if (status !== '') {
-          await toot(status);
-        } else {
-          console.log('No free games today.');
-        }
-    });
+// Function to post a toot on Mastodon using Axios
+async function toot(status) {
+  const config = JSON.parse(fs.readFileSync('config.json', 'utf8'));
+  const url = `${config.instanceUrl}/api/v1/statuses`;
+  const data = { status: status, visibility: 'public' };
+  const headers = {
+    'Authorization': `Bearer ${config.bearerToken}`,
+    'Content-Type': 'application/json'
+  };
+  try {
+    const response = await axios.post(url, data, { headers: headers });
+    console.log('Tooted:', status);
+  } catch (error) {
+    console.error('Error:', error.message);
+  }
+}
+
+
+// Function to check for free games on Epic Games Store and post a toot if any are found
+async function checkEpicGames() {
+  const epicGames = await fetchEpicGames();
+  if (epicGames.length > 0) {
+    const status = `New free games on Epic Games Store: ${epicGames.join(', ')}. 
+    Get them now! #freegames #EpicGamesStore`;
+    await toot(status);
+  }
+}
+
+// Function to check for free games on Steam and post a toot if any are found
+async function checkSteamGames() {
+  const steamGames = await fetchSteamGames();
+  if (steamGames.length > 0) {
+    const status = `New free games on Steam: ${steamGames.join(', ')}. 
+    Get them now! #freegames #Steam`;
+    await toot(status);
+  }
 }
     
-    // Main function
+// Main function
 async function main() {
-    scheduleToot();
+  // Load the config file
+  const config = JSON.parse(fs.readFileSync('config.json', 'utf8'));
+
+  // Check for new free games every minute
+  setInterval(async () => {
+    await checkEpicGames();
+    await checkSteamGames();
+  }, 60000);
+
+  // Post a startup message to Mastodon
+  const epicGames = await fetchEpicGames();
+  const message = epicGames.length > 0 ? `Today's free games on Epic Games Store: 
+    ${epicGames.join(', ')}. Get them now! #freegames #EpicGamesStore` : 
+    'No free games today.';
+  await toot(message);
 }
 
 function testBot() {
@@ -96,3 +123,10 @@ function testBot() {
     
 // Call the main function
 main();
+
+//call test function
+// testBot();
+(async function() {
+  const epicGames = await fetchEpicGames();
+  console.log(epicGames);
+})();
