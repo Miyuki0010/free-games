@@ -1,0 +1,4 @@
+{
+  "instanceUrl": "https://your_mastodon_instance",
+  "bearerToken": "your_bearer_token_here"
+}
