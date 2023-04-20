@@ -1,9 +1,6 @@
 # meow-bot
-a maastodon bot that meows in an interval between one minute and one hour.
+a mastodon bot that fetches free games and toots it daily.
 
 feel free to fork it, host it yourself etc.
-Only rules are: do not make damage with it and have fun with it 
+do not make damage with it. 
 
-
-## additonal node
-tried to improve the code so it runs more ressource efficent, but still not sure about that.
